@@ -1,9 +1,10 @@
 
 use std::sync::{Mutex, Arc};
-use std::thread;
+use std::{thread, time};
+use rand;
 
 mod buffer;
-use buffer::{BData, SBuffer};
+use buffer::{SBuffer};
 
 mod test;
 
@@ -26,10 +27,16 @@ mod test;
 //     }
 //     return NULL;
 // }
-// fn deposita_handler(buffer: SBuffer<i32>, insertions: i32)
-// {
-
-// }
+fn deposit_handler(mutex: &mut Arc<Mutex<SBuffer<i32>>>, mut insertions: i32)
+{
+    while insertions > 0
+    {
+        thread::sleep(time::Duration::from_millis(rand::random::<u64>() % 5));
+        let mut buff = mutex.lock().unwrap();
+        buff.push(rand::random::<i32>());
+        insertions -= 1;
+    }
+}
 
 // void* consome_thread(void* arg)
 // {
@@ -60,17 +67,22 @@ mod test;
 
 // }
 
-fn main() {
-    let shared_buffer: Arc<Mutex<SBuffer<u32>>> = Arc::new(Mutex::new(SBuffer::with_capacity(10, 1, 1)));
+fn main()
+{
+    let numpos = 16;
+    let numprod = 2;
+    let numcons = 2;
+
+    let shared_buffer: Arc<Mutex<SBuffer<i32>>> = Arc::new(Mutex::new(SBuffer::with_capacity(numpos, numprod, numcons)));
     let mut handles = vec![];
 
-    for n in 0..10
+    for _ in 0..numprod
     {
-        let my_buffer = Arc::clone(&shared_buffer);
+        let mut my_buffer = Arc::clone(&shared_buffer);
         let handle = thread::spawn(move || {
-            let mut buff = my_buffer.lock().unwrap();
-            buff.push(n);
-            // buff.data.push(BData{to_read: 0, data: n});
+            // let mut buff = my_buffer.lock().unwrap();
+            // buff.push(n);
+            deposit_handler(&mut my_buffer, 2);
         });
         handles.push(handle);
     }
@@ -79,10 +91,12 @@ fn main() {
         handle.join().unwrap();
     }
 
-    let end = shared_buffer.lock().unwrap().data.len() - 1;
-    for i in 0..end
-    {
-        println!("Result: {}", shared_buffer.lock().unwrap().data[i].data.unwrap());
-    }
+    let mut buff = shared_buffer.lock().unwrap();
+    println!("{}", buff);
+    // while buff.free_slots() < numpos
+    // {
+    //     let data = buff.pop(0).unwrap_or_default();
+    //     println!("Result: {}, free slots: {}", data, buff.free_slots());
+    // }
     
 }
