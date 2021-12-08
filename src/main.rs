@@ -29,13 +29,14 @@ mod test;
 // }
 fn deposit_handler(mutex: &mut Arc<Mutex<SBuffer<i32>>>, mut insertions: i32)
 {
+    let mut buff = mutex.lock().unwrap();
     while insertions > 0
     {
-        thread::sleep(time::Duration::from_millis(rand::random::<u64>() % 5));
-        let mut buff = mutex.lock().unwrap();
+        thread::sleep(time::Duration::from_secs(rand::random::<u64>() % 3));
         buff.push(rand::random::<i32>());
         insertions -= 1;
     }
+    println!("{}", buff);
 }
 
 // void* consome_thread(void* arg)
@@ -62,33 +63,58 @@ fn deposit_handler(mutex: &mut Arc<Mutex<SBuffer<i32>>>, mut insertions: i32)
 //     } 
 //     return NULL;
 // }
-// fn consome_handler()
-// {
-
-// }
+fn consome_handler(mutex: &mut Arc<Mutex<SBuffer<i32>>>, my_id: usize, mut consumes: u32)
+{
+    let mut buff = mutex.lock().unwrap();
+    let mut data: Vec<i32> = vec![];
+    while consumes > 0
+    {
+        thread::sleep(time::Duration::from_secs(rand::random::<u64>() % 2));
+        data.push(buff.pop(my_id).unwrap());
+        consumes -=1;
+    }
+    println!("Data consumed by {}: ( ", my_id);
+    for elem in data.iter() {
+        println!("{}; ", elem);
+    }
+    println!(")");
+}
 
 fn main()
 {
     let numpos = 16;
-    let numprod = 2;
+    let numprod = 4;
     let numcons = 2;
 
     let shared_buffer: Arc<Mutex<SBuffer<i32>>> = Arc::new(Mutex::new(SBuffer::with_capacity(numpos, numprod, numcons)));
-    let mut handles = vec![];
+    let mut prod_handles = vec![];
+    let mut cons_handles = vec![];
 
     for _ in 0..numprod
     {
         let mut my_buffer = Arc::clone(&shared_buffer);
-        let handle = thread::spawn(move || {
-            // let mut buff = my_buffer.lock().unwrap();
-            // buff.push(n);
+        let prod_handle = thread::spawn(move || {
             deposit_handler(&mut my_buffer, 2);
         });
-        handles.push(handle);
+        prod_handles.push(prod_handle);
     }
 
-    for handle in handles {
-        handle.join().unwrap();
+    thread::sleep(time::Duration::from_secs(3));
+
+    for c in 0..numcons
+    {
+        let mut my_buffer = Arc::clone(&shared_buffer);
+        let cons_handle = thread::spawn(move || {
+            consome_handler(&mut my_buffer, c, 2);
+        });
+        cons_handles.push(cons_handle);
+    }
+
+    for phandle in prod_handles {
+        phandle.join().unwrap();
+    }
+    for chandle in cons_handles {
+        chandle.join().unwrap();
     }
 
     let mut buff = shared_buffer.lock().unwrap();

@@ -70,17 +70,6 @@ impl<T: Copy + Display + Default> Display for SBuffer<T>
         // stream: `f`. Returns `fmt::Result` which indicates whether the
         // operation succeeded or failed. Note that `write!` uses syntax which
         // is very similar to `println!`.
-
-        // printf("%d::%d -> Buffer[ ", tid, data);
-        // for(int i = 0; i < args->buffer->numpos; i++)
-        // {
-        //     char str[10];
-        //     sprintf(str, "%d", args->buffer->data[i]);
-        //     char* symbol = args->buffer->data[i] >= 0 ? str : "*";
-        //     printf("%s ", symbol);
-        // }
-        // printf(" ] ( free slots: %d next free: %d )\n", args->buffer->free_slots, front(args->buffer->nxt_free));
-
         write!(f, "Buffer[ ");
         for d in &self.data
         {
