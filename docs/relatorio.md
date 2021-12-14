@@ -3,6 +3,7 @@ Descrição dos testes realizados, problemas identificados e não resolvidos.
 
 *por **Fernando Lima** (**2020877**)*
 
+*Nota*: Todo o trabalho pode ser encontrado e reproduzido pelo repositório [neste link](https://github.com/fol21/rust-broadcast-buffer).
 
 ##### *...Usando a técnica de passagem de bastão e a modelagem proposta por Andrews, implemente em C e pthreads uma estrutura de dados que é um buffer limitado com N posições, usado para broadcast entre P produtores e C consumidores. Cada produtor deve depositar I ítens e depois terminar execução, e cada consumidor deve consumir P\*I itens e terminar sua execução. (Os valores de N, P, C e I devem ser parâmetros de linha de comando para o programa de teste desenvolvido, nesta ordem.). Para simplificar, vamos supor que os itens de dados enviados são inteiros...*
 
@@ -21,10 +22,21 @@ O resumo do comportamento do buffer pode ser descrito pelas regras de negócio d
 - Quando um consumidor realiza uma leitura a posição sai da sua fila (*nxt_data[meu_id]*);
 - Os produtores adicionam as posições a cada deposito em cada componente (*nxt_data[meu_id]*) para leitura;
 
+## Breve Nivelamento sobre Rust e Ownership
 
-## Tasks de Consumo e Produção
+Rust consegue entregar programas paralelos com eficiência de uma forma segura utilizando conceitos de ***Ownership*** e ***Borrowing***. *[Ownership](https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html)* é o recurso mais exclusivo do Rust e permite que ele faça garantias de segurança de memória sem a necessidade de um coletor para "limpar o lixo". A memória é gerenciada por meio de um sistema de propriedade com um conjunto de regras que o compilador verifica no momento da compilação. Nenhum dos recursos de propriedade torna seu programa lento durante a execução. Cada valor em Rust tem uma variável que é chamada de *owner*(proprietário) e só pode haver um proprietário por vez. Quando o proprietário sai do escopo, o valor é descartado.
 
-Na implementação dos *handlers* de produção e consumo, não há diferença de paradigma, somente diferenças de implementação das instruções para Rust, em relação a um código feito C. A programação é funcional, o *handler* de produção se encarrega da tarefa de inserir I inserções, enquanto o de consumo consome um determinado número de dados no buffer para um consumidor específico com identificador *my_id*.
+Em linguagens com coletor de lixo (GC), o GC rastreia e limpa a memória que não está mais sendo usada, e não precisamos pensar sobre isso. Rust segue um caminho diferente: a memória é retornada automaticamente assim que a variável que a possui sai do escopo.
+
+Rust também permite o conceito de *[Borrowing](https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html)*, no qual consiste em criar uma referência que se refere a um valor, mas não o possui. Por não ser o proprietário dele, o valor para o qual ele aponta não será descartado quando a referência parar de ser usada. Em Rust os dados são por padrão imutáveis, porém é possível declarar valores e referências *mutáveis* (com a cláusula *mut*). Entretanto não é permitido emprestar a ownership de uma variável mutável mais de uma vez. Essa restrição que impede múltiplas referências mutáveis aos mesmos dados ao mesmo tempo permite a mutação de uma forma muito controlada, diferente da maioria das linguagens, pois elas permitem que você mude sempre que quiser. A vantagem de ter essa restrição é que o Rust pode evitar disputas de dados em tempo de compilação.
+
+Há casos em que um único valor pode ter vários proprietários. Por exemplo, em estruturas de dados de grafos, várias arestas podem apontar para o mesmo nó, e esse nó é conceitualmente de propriedade de todas as arestas que apontam para ele. Um nó não deve ser limpo, a menos que não tenha nenhuma aresta apontando para ele. Para se ter múltiplos proprietários, Rust possui uma estrutura chamada [Rc<T>](https://doc.rust-lang.org/book/ch15-04-rc.html), que é uma abreviatura para contagem de referência. O tipo Rc<T> rastreia o número de referências a um valor para determinar se o valor ainda está em uso ou não. Se houver zero referências a um valor, o valor pode ser limpo sem que nenhuma referência se torne inválida.
+
+Este trabalho irá explorar as vantagens descritas acima para acessar a estrutura do Buffer Compartilhado de forma segura e com eficiência.
+
+## Tarefas de Consumo e Produção
+
+Na implementação dos *handlers* de produção e consumo, não há diferença de paradigma, somente diferenças de implementação das instruções para Rust, em relação a um código feito C. A programação é funcional, o *handler* de produção se encarrega da tarefa de inserir I inserções, enquanto o de consumo consome um determinado número de dados no buffer para um consumidor específico com identificador *my_id*. As funções abaixo descrevem a tarefa pela superfície, os conceitos envolvidos serão detalhados adiante.
 
 ##### Produção
 ````Rust
@@ -64,7 +76,7 @@ fn consome_handler(mutex: &mut Arc<Mutex<SBuffer<i32>>>, my_id: usize, mut consu
 
 ## Testes de Unidade
 
-Rust e seu gerenciador de pacotes [Cargo](https://doc.rust-lang.org/cargo/) permitem a exdcução de testes unitários com simplicidade. Foram executados os mesmos testes da aplicação em C em forma de testes de unidade.
+Rust e seu gerenciador de pacotes [Cargo](https://doc.rust-lang.org/cargo/) permitem a execução de testes unitários com simplicidade. Foram executados os mesmos testes da aplicação em C em forma de testes de unidade.
 
 Cada seção abaixo descreverá os testes, o log a seguir mostra o resultado dos testes, atestando que todos passam pelas avaliações (ou *asserts*) propostos por cada teste.Para reporduzir os testes basta executar o comando ***cargo test*** na pasta raiz do projeto.
 
