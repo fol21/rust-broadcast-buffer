@@ -73,7 +73,7 @@ impl<T: Copy + Display + Default> Display for SBuffer<T>
         write!(f, "Buffer[ ");
         for d in &self.data
         {
-            write!(f, "{}; ", d.data.unwrap_or_default());
+            write!(f, "{}({}); ", d.data.unwrap_or_default(), d.to_read);
         }
         write!(f, " ] free_slots: {} next_free: {}", self.free_slots, self.nxt_free.back().unwrap())
     }

@@ -33,7 +33,7 @@ fn deposit_handler(mutex: &mut Arc<Mutex<SBuffer<i32>>>, mut insertions: i32)
     while insertions > 0
     {
         thread::sleep(time::Duration::from_secs(rand::random::<u64>() % 3));
-        buff.push(rand::random::<i32>());
+        buff.push(rand::random::<i32>().abs());
         insertions -= 1;
     }
     println!("{}", buff);
@@ -63,19 +63,22 @@ fn deposit_handler(mutex: &mut Arc<Mutex<SBuffer<i32>>>, mut insertions: i32)
 //     } 
 //     return NULL;
 // }
-fn consome_handler(mutex: &mut Arc<Mutex<SBuffer<i32>>>, my_id: usize, mut consumes: u32)
+fn consome_handler(mutex: &mut Arc<Mutex<SBuffer<i32>>>, my_id: usize, mut consumes: usize)
 {
     let mut buff = mutex.lock().unwrap();
     let mut data: Vec<i32> = vec![];
     while consumes > 0
     {
         thread::sleep(time::Duration::from_secs(rand::random::<u64>() % 2));
-        data.push(buff.pop(my_id).unwrap());
+        if !(buff.is_empty())
+        {
+            data.push(buff.pop(my_id).unwrap());
+        }
         consumes -=1;
     }
-    println!("Data consumed by {}: ( ", my_id);
+    print!("Data consumed by {}: ( ", my_id);
     for elem in data.iter() {
-        println!("{}; ", elem);
+        print!("{}; ", elem);
     }
     println!(")");
 }
@@ -84,7 +87,7 @@ fn main()
 {
     let numpos = 16;
     let numprod = 4;
-    let numcons = 2;
+    let numcons = 3;
 
     let shared_buffer: Arc<Mutex<SBuffer<i32>>> = Arc::new(Mutex::new(SBuffer::with_capacity(numpos, numprod, numcons)));
     let mut prod_handles = vec![];
@@ -99,13 +102,14 @@ fn main()
         prod_handles.push(prod_handle);
     }
 
+    // Give a break before start consuming
     thread::sleep(time::Duration::from_secs(3));
 
     for c in 0..numcons
     {
         let mut my_buffer = Arc::clone(&shared_buffer);
         let cons_handle = thread::spawn(move || {
-            consome_handler(&mut my_buffer, c, 2);
+            consome_handler(&mut my_buffer, c, c + 2);
         });
         cons_handles.push(cons_handle);
     }
@@ -117,12 +121,7 @@ fn main()
         chandle.join().unwrap();
     }
 
-    let mut buff = shared_buffer.lock().unwrap();
+    let buff = shared_buffer.lock().unwrap();
     println!("{}", buff);
-    // while buff.free_slots() < numpos
-    // {
-    //     let data = buff.pop(0).unwrap_or_default();
-    //     println!("Result: {}, free slots: {}", data, buff.free_slots());
-    // }
     
 }
