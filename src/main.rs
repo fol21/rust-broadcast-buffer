@@ -1,6 +1,7 @@
 
 use std::sync::{Mutex, Arc};
 use std::{thread, time};
+use std::env;
 use rand;
 
 mod buffer;
@@ -85,9 +86,12 @@ fn consome_handler(mutex: &mut Arc<Mutex<SBuffer<i32>>>, my_id: usize, mut consu
 
 fn main()
 {
-    let numpos = 16;
-    let numprod = 4;
-    let numcons = 3;
+    let args: Vec<String> = env::args().collect();
+
+    let numpos: usize = args[1].parse().unwrap_or(16);
+    let numprod: usize = args[2].parse().unwrap_or(4);
+    let numcons: usize = args[3].parse().unwrap_or(3);
+    let insertions: usize = args[4].parse().unwrap_or(2);
 
     let shared_buffer: Arc<Mutex<SBuffer<i32>>> = Arc::new(Mutex::new(SBuffer::with_capacity(numpos, numprod, numcons)));
     let mut prod_handles = vec![];
@@ -97,7 +101,7 @@ fn main()
     {
         let mut my_buffer = Arc::clone(&shared_buffer);
         let prod_handle = thread::spawn(move || {
-            deposit_handler(&mut my_buffer, 2);
+            deposit_handler(&mut my_buffer, insertions as i32);
         });
         prod_handles.push(prod_handle);
     }
